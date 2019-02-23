@@ -1,0 +1,66 @@
+def label = "docker-${UUID.randomUUID().toString()}"
+
+podTemplate(label: label, yaml: """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: docker
+    image: docker:1.11
+    command: ['cat']
+    tty: true
+    volumeMounts:
+    - name: dockersock
+      mountPath: /var/run/docker.sock
+    - name: docker-config
+      mountPath: /root/.docker
+  - name: kubectl
+    image: lachlanevenson/k8s-kubectl:v1.8.0
+    command: [cat]
+    tty: true
+    volumeMounts:
+    - name: dockersock
+      mountPath: /var/run/docker.sock
+    - name: docker-config
+      mountPath: /root/.docker
+  volumes:
+  - name: dockersock
+    hostPath:
+      path: /var/run/docker.sock
+  - name: docker-config
+    configMap:
+      name: docker-config
+"""
+  ) {
+
+  def imagetag = new Date().format('yyyyMMdd.HHmmss')
+  def image = "cavaleras/php-host:${imagetag}"
+  
+  node(label) 
+  {
+    stage('Build Docker image') 
+    {
+      git 'https://github.com/cavaleras/dof-exam.git'
+      container('docker') 
+      {
+        sh "docker build -t ${image} /php"
+      }
+    }
+    stage ("Push")
+    {
+      container('docker') 
+      {
+        sh "docker push ${image}"
+      }
+    }
+    stage ("Apply the changes with kubectl")
+    {
+      container('kubectl') 
+      {
+        sh "sed 's/%IMAGE-PLACEHOLDER%/${imagetag}/g' -i php/php-host-deployment.yml"
+	sh "sed 's/%IMAGE-PLACEHOLDER%/${imagetag}/g' -i php/php-host-service.yml"
+        sh "kubectl apply -f php/ -R"
+      }
+    }
+  }
+} 

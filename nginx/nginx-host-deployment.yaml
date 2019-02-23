@@ -1,0 +1,26 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.17.0 (a74acad)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: nginx-host
+  name: nginx-host
+spec:
+  replicas: 3
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: nginx-host
+    spec:
+      containers:
+      - image: cavaleras/nginx-host:%IMAGE-PLACEHOLDER%
+        name: nginx-host
+        ports:
+        - containerPort: 80
+     
